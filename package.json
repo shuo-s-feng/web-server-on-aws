@@ -1,0 +1,33 @@
+{
+  "name": "web-server-on-aws",
+  "description": "A TypeScript project for web server deployment on AWS",
+  "version": "1.0.0",
+  "author": "Shuo Feng",
+  "license": "MIT",
+  "scripts": {
+    "build": "yarn clean && tsc -p ./tsconfig.json",
+    "clean": "(rm -rf ./lib || true) && (rm -rf ./cdk.out || true) && (rm -rf ./yarn-error.log || true)",
+    "clean:hard": "yarn run clean && (rm -rf ./node_modules || true) && (rm -rf cdk.context.json || true)",
+    "deploy-nodejs-backend:staging": "cross-env NODE_ENV=staging cdk deploy --require-approval never --app 'ts-node bin/deploy-nodejs-backend.ts'",
+    "deploy-nodejs-backend:prod": "cross-env NODE_ENV=prod cdk deploy --require-approval never --app 'ts-node bin/deploy-nodejs-backend.ts'"
+  },
+  "keywords": [
+    "typescript",
+    "aws",
+    "web-server",
+    "deployment"
+  ],
+  "dependencies": {
+    "aws-cdk-lib": "^2.196.0",
+    "constructs": "^10.4.2",
+    "dotenv": "^16.5.0",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.19",
+    "cross-env": "^7.0.3",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}
