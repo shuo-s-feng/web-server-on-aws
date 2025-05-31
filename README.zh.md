@@ -133,6 +133,10 @@ yarn deploy-backend:prod
 - **CloudWatch Metrics** - 增强的健康报告指标（如果启用）
 - **Route 53 Records** - 自定义域名配置（如果启用）
 
+CloudFormation 示例截图：
+
+![CloudFormation Stack Screenshot](./examples/nodejs-cloudformation-screenshot.png)
+
 您可以通过以下方式访问您的应用程序：
 
 - **Elastic Beanstalk 域名：** 环境域名会显示在 AWS 控制台的环境页面。例如：

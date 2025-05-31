@@ -133,6 +133,10 @@ After deployment, the following main resources will be created in your AWS accou
 - **CloudWatch Metrics** - Enhanced health reporting metrics (if enabled)
 - **Route 53 Records** - Custom domain configuration (if enabled)
 
+CloudFormation example screenshot:
+
+![CloudFormation Stack Screenshot](./examples/nodejs-cloudformation-screenshot.png)
+
 You can access your application through:
 
 - **Elastic Beanstalk domain:** The environment domain is shown in the AWS Console for your environment. For example:
