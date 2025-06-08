@@ -9,7 +9,9 @@
     "clean": "(rm -rf ./lib || true) && (rm -rf ./cdk.out || true) && (rm -rf ./yarn-error.log || true)",
     "clean:hard": "yarn run clean && (rm -rf ./node_modules || true) && (rm -rf cdk.context.json || true)",
     "deploy-nodejs-backend:staging": "cross-env NODE_ENV=staging cdk deploy --require-approval never --app 'ts-node bin/deploy-nodejs-backend.ts'",
-    "deploy-nodejs-backend:prod": "cross-env NODE_ENV=prod cdk deploy --require-approval never --app 'ts-node bin/deploy-nodejs-backend.ts'"
+    "deploy-nodejs-backend:prod": "cross-env NODE_ENV=prod cdk deploy --require-approval never --app 'ts-node bin/deploy-nodejs-backend.ts'",
+    "deploy-django-backend:staging": "cross-env NODE_ENV=staging cdk deploy --require-approval never --app 'ts-node bin/deploy-django-backend.ts'",
+    "deploy-django-backend:prod": "cross-env NODE_ENV=prod cdk deploy --require-approval never --app 'ts-node bin/deploy-django-backend.ts'"
   },
   "keywords": [
     "typescript",

@@ -33,6 +33,28 @@ export const getEnvVariables = () => {
       env.NODEJS_BACKEND_ENABLE_HEALTH_EVENT_LOGS === "true",
     nodejsBackendEnableHealthReporting:
       env.NODEJS_BACKEND_ENABLE_HEALTH_REPORTING === "true",
+
+    djangoBackendAppName: env.DJANGO_BACKEND_APP_NAME ?? "DjangoBackend",
+    djangoBackendDomainName: env.DJANGO_BACKEND_DOMAIN_NAME ?? "",
+    djangoBackendDomainCertificateARN: env.DJANGO_BACKEND_DOMAIN_CERT_ARN ?? "",
+    djangoBackendSourcePath: env.DJANGO_BACKEND_SOURCE_PATH ?? "",
+    djangoBackendWSGIPath: env.DJANGO_BACKEND_WSGI_PATH ?? "",
+    djangoBackendEC2InstanceType:
+      env.DJANGO_BACKEND_EC2_INSTANCE_TYPE ?? "t3.small",
+    djangoBackendMinInstances: parseInt(
+      env.DJANGO_BACKEND_MIN_INSTANCES ?? "1",
+      10
+    ),
+    djangoBackendMaxInstances: parseInt(
+      env.DJANGO_BACKEND_MAX_INSTANCES ?? "2",
+      10
+    ),
+    djangoBackendEnableWebServerLogs:
+      env.DJANGO_BACKEND_ENABLE_WEB_SERVER_LOGS === "true",
+    djangoBackendEnableHealthEventLogs:
+      env.DJANGO_BACKEND_ENABLE_HEALTH_EVENT_LOGS === "true",
+    djangoBackendEnableHealthReporting:
+      env.DJANGO_BACKEND_ENABLE_HEALTH_REPORTING === "true",
   };
 
   return envVariables;
