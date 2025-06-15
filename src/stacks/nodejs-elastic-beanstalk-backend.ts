@@ -49,6 +49,8 @@ export interface NodeJSElasticBeanstalkBackendStackProps extends StackProps {
   minimumInstanceCount?: number;
   /** Maximum number of EC2 instances to maintain */
   maximumInstanceCount?: number;
+  /** Enable loose health check, which will not fail the health check if the HTTP response code at root path is not 2xx but 3xx */
+  looseHealthCheck?: boolean;
   /** Configuration for various logging options */
   logging?: {
     /** Enable streaming of web server logs to CloudWatch */
@@ -76,6 +78,7 @@ export class NodeJSElasticBeanstalkBackendStack extends Stack {
       ec2InstanceType = "t3.small",
       minimumInstanceCount = 1,
       maximumInstanceCount = 2,
+      looseHealthCheck = false,
       logging = {
         enableWebServerLogStreaming: false,
         enableHealthEventLogStreaming: false,
@@ -209,6 +212,15 @@ export class NodeJSElasticBeanstalkBackendStack extends Stack {
           namespace: "aws:elasticbeanstalk:cloudwatch:logs:health",
           optionName: "DeleteOnTerminate",
           value: "false",
+        },
+      ];
+
+    const optionSettingsForHealthMatcher: Array<CfnEnvironment.OptionSettingProperty> =
+      [
+        {
+          namespace: "aws:elasticbeanstalk:environment:process:default",
+          optionName: "MatcherHTTPCode",
+          value: "200-399",
         },
       ];
 
@@ -371,6 +383,7 @@ export class NodeJSElasticBeanstalkBackendStack extends Stack {
         ...(logging.enableHealthReporting
           ? optionSettingsForHealthReporting
           : []),
+        ...(looseHealthCheck ? optionSettingsForHealthMatcher : []),
       ],
       // Let the EB environment consume the latest version of the NodeJS application
       versionLabel: applicationVersion.ref,

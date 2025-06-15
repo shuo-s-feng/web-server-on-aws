@@ -27,6 +27,8 @@ export const getEnvVariables = () => {
       env.NODEJS_BACKEND_MAX_INSTANCES ?? "2",
       10
     ),
+    nodejsBackendLooseHealthCheck:
+      env.NODEJS_BACKEND_LOOSE_HEALTH_CHECK === "true",
     nodejsBackendEnableWebServerLogs:
       env.NODEJS_BACKEND_ENABLE_WEB_SERVER_LOGS === "true",
     nodejsBackendEnableHealthEventLogs:
@@ -49,6 +51,8 @@ export const getEnvVariables = () => {
       env.DJANGO_BACKEND_MAX_INSTANCES ?? "2",
       10
     ),
+    djangoBackendLooseHealthCheck:
+      env.DJANGO_BACKEND_LOOSE_HEALTH_CHECK === "true",
     djangoBackendEnableWebServerLogs:
       env.DJANGO_BACKEND_ENABLE_WEB_SERVER_LOGS === "true",
     djangoBackendEnableHealthEventLogs:
