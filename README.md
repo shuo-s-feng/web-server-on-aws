@@ -2,12 +2,12 @@
 
 [English](README.md) | [中文](README.zh.md)
 
-A TypeScript-based AWS CDK project for deploying web applications (Node.js and Django) to AWS Elastic Beanstalk. This project provides a robust and scalable solution for hosting web applications using AWS services.
+A TypeScript-based AWS CDK project for deploying web applications (Node.js, Django, and Docker) to AWS Elastic Beanstalk. This project provides a robust and scalable solution for hosting web applications using AWS services.
 
 ## Features
 
 - Automated infrastructure creation and continuous deployment using AWS CDK
-- Support for both Node.js and Django backend deployments
+- Support for multiple backend types: Node.js, Django, and Docker
 - Environment-based deployment (staging and production)
 - Optional custom domain configuration with SSL certificates
 - Comprehensive logging and monitoring setup
@@ -46,122 +46,180 @@ yarn install
 ```
 .
 ├── bin/                    # CDK app entry points
-│   ├── deploy-nodejs-backend.ts    # Node.js backend deployment
-│   └── deploy-django-backend.ts    # Django backend deployment
-├── src/                    # Source code
-│   ├── stacks/            # CDK stacks
-│   └── utils/             # Utility functions
-├── examples/              # Example web app source code
-└── cdk.out/              # CDK synthesis output
+│   └── deploy-elastic-beanstalk.ts    # Elastic Beanstalk deployment
+├── lib/                    # CDK constructs
+│   └── elastic-beanstalk/  # Elastic Beanstalk constructs
+├── configs/                # Environment configuration files
+│   ├── .env.staging.django # Django staging configuration
+│   ├── .env.staging.nodejs # Node.js staging configuration
+│   ├── .env.staging.docker # Docker staging configuration
+│   ├── .env.prod.django    # Django production configuration
+│   ├── .env.prod.nodejs    # Node.js production configuration
+│   └── .env.prod.docker    # Docker production configuration
+└── examples/               # Example web app source code
+    ├── django-backend-dist/    # Django example application
+    ├── nodejs-backend-dist/    # Node.js example application
+    └── docker-backend-dist/    # Docker example application
 ```
 
 ## Environment Configuration
 
-The project uses environment-specific configuration files to manage different deployment environments. Update the following files in the root directory:
+The project uses environment-specific configuration files to manage different deployment environments and backend types. Each backend type has its own configuration file for better organization and clarity.
 
-### `.env.staging`
+### Configuration Files Structure
 
-```bash
-# AWS Configuration
-AWS_ACCOUNT='<AWS_ACCOUNT_ID, e.g. 123456789012>'
-AWS_REGION='<AWS_REGION, e.g. us-east-1>'
+- **Django Backend**: `configs/.env.{environment}.django`
+- **Node.js Backend**: `configs/.env.{environment}.nodejs`
+- **Docker Backend**: `configs/.env.{environment}.docker`
 
-# Node.js Backend Configuration
-NODEJS_BACKEND_APP_NAME='<APP_NAME, e.g. NodeJSBackend>'
-# NODEJS_BACKEND_DOMAIN_NAME='<DOMAIN_NAME, e.g. api.example.com>'
-# NODEJS_BACKEND_DOMAIN_CERT_ARN='<SSL_CERTIFICATE_ARN, e.g. arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-NODEJS_BACKEND_SOURCE_PATH='<SOURCE_PATH, e.g. ./examples/nodejs-backend-dist>'
-# NODEJS_BACKEND_EC2_INSTANCE_TYPE='<INSTANCE_TYPE, e.g. t3.small>'
-# NODEJS_BACKEND_MIN_INSTANCES='<MIN_INSTANCES, e.g. 1>'
-# NODEJS_BACKEND_MAX_INSTANCES='<MAX_INSTANCES, e.g. 2>'
-# NODEJS_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
+Where `{environment}` can be `staging` or `prod`.
 
-# Django Backend Configuration
-DJANGO_BACKEND_APP_NAME='<APP_NAME, e.g. DjangoBackend>'
-# DJANGO_BACKEND_DOMAIN_NAME='<DOMAIN_NAME, e.g. api.example.com>'
-# DJANGO_BACKEND_DOMAIN_CERT_ARN='<SSL_CERTIFICATE_ARN, e.g. arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-DJANGO_BACKEND_SOURCE_PATH='<SOURCE_PATH, e.g. ./examples/django-backend-dist>'
-# DJANGO_BACKEND_EC2_INSTANCE_TYPE='<INSTANCE_TYPE, e.g. t3.small>'
-# DJANGO_BACKEND_MIN_INSTANCES='<MIN_INSTANCES, e.g. 1>'
-# DJANGO_BACKEND_MAX_INSTANCES='<MAX_INSTANCES, e.g. 2>'
-# DJANGO_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
-```
+### Configuration Examples
 
-### `.env.prod`
+#### Django Backend Core Configuration (`.env.staging.django`)
 
 ```bash
 # AWS Configuration
-AWS_ACCOUNT='<AWS_ACCOUNT_ID, e.g. 123456789012>'
+AWS_ACCOUNT='<AWS_ACCOUNT, e.g. 123456789012>'
 AWS_REGION='<AWS_REGION, e.g. us-east-1>'
 
-# Node.js Backend Configuration
-NODEJS_BACKEND_APP_NAME='<APP_NAME, e.g. NodeJSBackend>'
-# NODEJS_BACKEND_DOMAIN_NAME='<DOMAIN_NAME, e.g. api.example.com>'
-# NODEJS_BACKEND_DOMAIN_CERT_ARN='<SSL_CERTIFICATE_ARN, e.g. arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-NODEJS_BACKEND_SOURCE_PATH='<SOURCE_PATH, e.g. ./examples/nodejs-backend-dist>'
-# NODEJS_BACKEND_EC2_INSTANCE_TYPE='<INSTANCE_TYPE, e.g. t3.small>'
-# NODEJS_BACKEND_MIN_INSTANCES='<MIN_INSTANCES, e.g. 1>'
-# NODEJS_BACKEND_MAX_INSTANCES='<MAX_INSTANCES, e.g. 2>'
-# NODEJS_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
+# Name of the Elastic Beanstalk application
+BACKEND_APP_NAME='DjangoBackend'
 
-# Django Backend Configuration
-DJANGO_BACKEND_APP_NAME='<APP_NAME, e.g. DjangoBackend>'
-# DJANGO_BACKEND_DOMAIN_NAME='<DOMAIN_NAME, e.g. api.example.com>'
-# DJANGO_BACKEND_DOMAIN_CERT_ARN='<SSL_CERTIFICATE_ARN, e.g. arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-DJANGO_BACKEND_SOURCE_PATH='<SOURCE_PATH, e.g. ./examples/django-backend-dist>'
-# DJANGO_BACKEND_EC2_INSTANCE_TYPE='<INSTANCE_TYPE, e.g. t3.small>'
-# DJANGO_BACKEND_MIN_INSTANCES='<MIN_INSTANCES, e.g. 1>'
-# DJANGO_BACKEND_MAX_INSTANCES='<MAX_INSTANCES, e.g. 2>'
-# DJANGO_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
+# Solution stack name for the Elastic Beanstalk environment.
+# Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.python
+# Please check the latest solution stack name before deploying as it may change frequently and the old ones may fail to deploy.
+BACKEND_SOLUTION_STACK_NAME='64bit Amazon Linux 2023 v4.5.2 running Python 3.12'
+
+# (Optional) Custom domain name for the application
+# BACKEND_DOMAIN_NAME='example.com'
+
+# (Optional) ARN of the ACM SSL certificate for HTTPS support
+# BACKEND_DOMAIN_CERT_ARN='arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx'
+
+# Local path to the application source code
+BACKEND_SOURCE_PATH='./examples/django-backend-dist'
+
+# WSGI path for the Django application
+DJANGO_BACKEND_WSGI_PATH='hello_world.wsgi:application'
+
+# Path to the static files for the Django application
+BACKEND_STATIC_FILES_PATH='/staticfiles'
 ```
 
-Replace the placeholder values with your actual configuration. The commented lines are optional and can be uncommented if you want to use a custom domain with SSL certificate.
+#### Node.js Backend Core Configuration (`.env.staging.nodejs`)
+
+```bash
+# AWS Configuration
+AWS_ACCOUNT='<AWS_ACCOUNT, e.g. 123456789012>'
+AWS_REGION='<AWS_REGION, e.g. us-east-1>'
+
+# Name of the Elastic Beanstalk application
+BACKEND_APP_NAME='NodeJsBackend'
+
+# Solution stack name for the Elastic Beanstalk environment.
+# Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.nodejs
+# Please check the latest solution stack name before deploying as it may change frequently and the old ones may fail to deploy.
+BACKEND_SOLUTION_STACK_NAME='64bit Amazon Linux 2023 v6.5.2 running Node.js 22'
+
+# (Optional) Custom domain name for the application
+# BACKEND_DOMAIN_NAME='example.com'
+
+# (Optional) ARN of the ACM SSL certificate for HTTPS support
+# BACKEND_DOMAIN_CERT_ARN='arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx'
+
+# Local path to the application source code
+BACKEND_SOURCE_PATH='./examples/nodejs-backend-dist'
+```
+
+#### Docker Backend Core Configuration (`.env.staging.docker`)
+
+```bash
+# AWS Configuration
+AWS_ACCOUNT='<AWS_ACCOUNT, e.g. 123456789012>'
+AWS_REGION='<AWS_REGION, e.g. us-east-1>'
+
+# Name of the Elastic Beanstalk application
+BACKEND_APP_NAME='DockerBackend'
+
+# Solution stack name for the Elastic Beanstalk environment.
+# Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.docker
+# Please check the latest solution stack name before deploying as it may change frequently and the old ones may fail to deploy.
+BACKEND_SOLUTION_STACK_NAME='64bit Amazon Linux 2023 v4.5.2 running Docker'
+
+# (Optional) Custom domain name for the application
+# BACKEND_DOMAIN_NAME='example.com'
+
+# (Optional) ARN of the ACM SSL certificate for HTTPS support
+# BACKEND_DOMAIN_CERT_ARN='arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx'
+
+# Local path to the application source code
+BACKEND_SOURCE_PATH='./examples/docker-backend-dist'
+
+# Container port for the Docker application
+DOCKER_BACKEND_CONTAINER_PORT='3000'
+```
+
+### Configuration Setup
+
+1. Choose the appropriate configuration file based on your backend type and environment
+2. Update the configuration values with your actual AWS account and application settings
+3. Replace placeholder values with your specific configuration
+4. For custom domain support, uncomment and configure the domain-related variables
 
 ## Deployment
 
 ### Environment Setup
 
-1. Update the environment configuration files as described above
-2. Fill in the appropriate values for your AWS account and application configuration
+1. Update the appropriate environment configuration file as described above
+2. Fill in the correct values for your AWS account and application configuration
 3. If using a custom domain, uncomment and configure the domain-related variables
 
-### Node.js Backend Deployment
+### Deployment Commands
 
-#### Staging Environment
+#### Django Backend Deployment
 
-```bash
-yarn deploy-nodejs-backend:staging
-```
-
-#### Production Environment
-
-```bash
-yarn deploy-nodejs-backend:prod
-```
-
-### Django Backend Deployment
-
-#### Staging Environment
+**Staging Environment:**
 
 ```bash
 yarn deploy-django-backend:staging
 ```
 
-#### Production Environment
+**Production Environment:**
 
 ```bash
 yarn deploy-django-backend:prod
 ```
 
-Note: Make sure your AWS credentials are properly configured before deployment. The deployment process will use the environment-specific configuration from the respective `.env.*` file.
+#### Node.js Backend Deployment
+
+**Staging Environment:**
+
+```bash
+yarn deploy-nodejs-backend:staging
+```
+
+**Production Environment:**
+
+```bash
+yarn deploy-nodejs-backend:prod
+```
+
+#### Docker Backend Deployment
+
+**Staging Environment:**
+
+```bash
+yarn deploy-docker-backend:staging
+```
+
+**Production Environment:**
+
+```bash
+yarn deploy-docker-backend:prod
+```
+
+**Note:** Make sure your AWS credentials are properly configured before deployment. The deployment process will use the environment-specific configuration from the respective `.env.*.*` file.
 
 ## Created AWS Resources
 

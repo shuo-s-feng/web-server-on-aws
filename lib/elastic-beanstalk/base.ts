@@ -1,5 +1,5 @@
 /**
- * Stack for deploying a Django application on AWS Elastic Beanstalk.
+ * Stack for deploying an application on AWS Elastic Beanstalk.
  * This stack sets up all necessary AWS resources including:
  * - Elastic Beanstalk application and environment
  * - IAM roles and instance profiles
@@ -9,7 +9,7 @@
  * - Optional custom domain configuration
  */
 import { Construct } from "constructs";
-import { Stack, StackProps } from "aws-cdk-lib";
+import { CfnOutput, Stack, StackProps } from "aws-cdk-lib";
 import {
   CfnApplication,
   CfnApplicationVersion,
@@ -30,27 +30,37 @@ import {
 } from "aws-cdk-lib/aws-route53";
 
 /**
- * Properties for configuring the Django Elastic Beanstalk backend stack
+ * Properties for configuring the Elastic Beanstalk stack
  */
-export interface DjangoElasticBeanstalkBackendStackProps extends StackProps {
+export interface BaseElasticBeanstalkStackProps extends StackProps {
   /** Name of the Elastic Beanstalk application */
   applicationName: string;
   /** Name of the environment (e.g., 'staging', 'prod') */
   environmentName: string;
+  /** Solution stack name for the Elastic Beanstalk environment.
+   * Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.python
+   */
+  solutionStackName: string;
   /** Optional custom domain name for the application */
   domainName?: string;
   /** ARN of the SSL certificate for HTTPS support */
   domainCertificateArn?: string;
-  /** Local path to the Django application source code */
+  /** Local path to the application source code */
   sourcePath: string;
-  /** Path to the WSGI file for the Django application */
-  wsgiPath: string;
+  /** Path to the static files for the application */
+  staticFilesPath?: string;
+  /** Environment variables for the application */
+  environmentVariables?: Record<string, string>;
   /** EC2 instance type for the Elastic Beanstalk environment */
   ec2InstanceType?: string;
   /** Minimum number of EC2 instances to maintain */
   minimumInstanceCount?: number;
   /** Maximum number of EC2 instances to maintain */
   maximumInstanceCount?: number;
+  /** Enable loose health check, which will not fail the health check if the HTTP response code at root path is not 2xx but 3xx */
+  looseHealthCheck?: boolean;
+  /** Option settings for the Elastic Beanstalk environment */
+  optionSettings?: Array<CfnEnvironment.OptionSettingProperty>;
   /** Configuration for various logging options */
   logging?: {
     /** Enable streaming of web server logs to CloudWatch */
@@ -62,23 +72,34 @@ export interface DjangoElasticBeanstalkBackendStackProps extends StackProps {
   };
 }
 
-export class DjangoElasticBeanstalkBackendStack extends Stack {
+export class BaseElasticBeanstalkStack extends Stack {
+  sourceAsset: Asset;
+  elasticBeanstalkRole: Role;
+  elasticBeanstalkInstanceProfile: CfnInstanceProfile;
+  application: CfnApplication;
+  applicationVersion: CfnApplicationVersion;
+  cfnEnvironment: CfnEnvironment;
+
   constructor(
     scope: Construct,
     id: string,
-    props: DjangoElasticBeanstalkBackendStackProps
+    props: BaseElasticBeanstalkStackProps
   ) {
     super(scope, id, props);
     const {
       applicationName,
       environmentName,
+      solutionStackName,
       domainName,
       domainCertificateArn,
       sourcePath,
-      wsgiPath,
+      staticFilesPath,
+      environmentVariables,
       ec2InstanceType = "t3.small",
       minimumInstanceCount = 1,
       maximumInstanceCount = 2,
+      optionSettings,
+      looseHealthCheck = false,
       logging = {
         enableWebServerLogStreaming: false,
         enableHealthEventLogStreaming: false,
@@ -86,19 +107,15 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
       },
     } = props;
 
-    // Create an S3 asset to store and version the Django application source code
+    // Create an S3 asset to store and version the application source code
     // This asset will be used by Elastic Beanstalk to deploy the application
-    const djangoBackendSourceAsset = new Asset(
-      this,
-      "DjangoBackendSourceAsset",
-      {
-        path: sourcePath,
-      }
-    );
+    this.sourceAsset = new Asset(this, "SourceAsset", {
+      path: sourcePath,
+    });
 
     // Create an IAM role that will be assumed by EC2 instances in the Elastic Beanstalk environment
     // This role grants necessary permissions for the application to function properly
-    const elasticBeanstalkRole = new Role(this, "ElasticBeanstalkRole", {
+    this.elasticBeanstalkRole = new Role(this, "ElasticBeanstalkRole", {
       assumedBy: new ServicePrincipal("ec2.amazonaws.com"),
     });
 
@@ -106,20 +123,14 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
     // These policies provide permissions for:
     // - Web tier operations (handling HTTP/HTTPS traffic)
     // - Worker tier operations (background tasks)
-    // - Docker container operations (if using multi-container setup)
     // - General Elastic Beanstalk administration
-    elasticBeanstalkRole.addManagedPolicy(
+    this.elasticBeanstalkRole.addManagedPolicy(
       ManagedPolicy.fromAwsManagedPolicyName("AWSElasticBeanstalkWebTier")
     );
-    elasticBeanstalkRole.addManagedPolicy(
+    this.elasticBeanstalkRole.addManagedPolicy(
       ManagedPolicy.fromAwsManagedPolicyName("AWSElasticBeanstalkWorkerTier")
     );
-    elasticBeanstalkRole.addManagedPolicy(
-      ManagedPolicy.fromAwsManagedPolicyName(
-        "AWSElasticBeanstalkMulticontainerDocker"
-      )
-    );
-    elasticBeanstalkRole.addManagedPolicy(
+    this.elasticBeanstalkRole.addManagedPolicy(
       ManagedPolicy.fromAwsManagedPolicyName(
         "AdministratorAccess-AWSElasticBeanstalk"
       )
@@ -127,27 +138,27 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
 
     // Create an instance profile that associates the IAM role with EC2 instances
     // This is required for Elastic Beanstalk to launch instances with the correct permissions
-    const elasticBeanstalkInstanceProfile = new CfnInstanceProfile(
+    this.elasticBeanstalkInstanceProfile = new CfnInstanceProfile(
       this,
       "ElasticBeanstalkInstanceProfile",
       {
-        roles: [elasticBeanstalkRole.roleName],
+        roles: [this.elasticBeanstalkRole.roleName],
       }
     );
 
     // Create the Elastic Beanstalk application
     // This is the top-level container for all environments and versions
-    const djangoAppplication = new CfnApplication(this, "DjangoApplication", {
+    this.application = new CfnApplication(this, "Application", {
       applicationName,
     });
 
     // Create a new application version from the source code
     // Each deployment will create a new version, allowing for rollbacks if needed
-    const applicationVersion = new CfnApplicationVersion(this, "AppVersion", {
-      applicationName: djangoAppplication.applicationName!,
+    this.applicationVersion = new CfnApplicationVersion(this, "AppVersion", {
+      applicationName: this.application.applicationName!,
       sourceBundle: {
-        s3Bucket: djangoBackendSourceAsset.s3BucketName,
-        s3Key: djangoBackendSourceAsset.s3ObjectKey,
+        s3Bucket: this.sourceAsset.s3BucketName,
+        s3Key: this.sourceAsset.s3ObjectKey,
       },
     });
 
@@ -212,6 +223,15 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
           namespace: "aws:elasticbeanstalk:cloudwatch:logs:health",
           optionName: "DeleteOnTerminate",
           value: "false",
+        },
+      ];
+
+    const optionSettingsForHealthMatcher: Array<CfnEnvironment.OptionSettingProperty> =
+      [
+        {
+          namespace: "aws:elasticbeanstalk:environment:process:default",
+          optionName: "MatcherHTTPCode",
+          value: "200-399",
         },
       ];
 
@@ -322,11 +342,10 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
 
     // Create the Elastic Beanstalk environment
     // This is where the application actually runs, with all the configured settings
-    const djangoEnvironment = new CfnEnvironment(this, "DjangoEnvironment", {
-      applicationName: djangoAppplication.applicationName!,
-      environmentName: djangoAppplication.applicationName!,
-      // Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.python
-      solutionStackName: "64bit Amazon Linux 2023 v4.5.2 running Python 3.12",
+    this.cfnEnvironment = new CfnEnvironment(this, "CfnEnvironment", {
+      applicationName: this.application.applicationName!,
+      environmentName: this.application.applicationName!,
+      solutionStackName,
       optionSettings: [
         {
           namespace: "aws:autoscaling:launchconfiguration",
@@ -334,21 +353,19 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
           value: ec2InstanceType,
         },
         {
+          namespace: "aws:autoscaling:asg",
+          optionName: "MinSize",
+          value: minimumInstanceCount.toString(),
+        },
+        {
+          namespace: "aws:autoscaling:asg",
+          optionName: "MaxSize",
+          value: maximumInstanceCount.toString(),
+        },
+        {
           namespace: "aws:autoscaling:launchconfiguration",
           optionName: "IamInstanceProfile",
-          value: elasticBeanstalkInstanceProfile.attrArn,
-        },
-        {
-          namespace: "aws:elasticbeanstalk:container:python",
-          optionName: "WSGIPath",
-          // Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/create-deploy-python-django.html
-          value: wsgiPath,
-        },
-        {
-          // Reference: https://docs.aws.amazon.com/elasticbeanstalk/latest/dg/environment-cfg-staticfiles.html
-          namespace: "aws:elasticbeanstalk:environment:proxy:staticfiles",
-          optionName: "/static",
-          value: "/staticfiles",
+          value: this.elasticBeanstalkInstanceProfile.attrArn,
         },
         {
           namespace: "aws:elasticbeanstalk:environment",
@@ -366,16 +383,22 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
           optionName: "Env",
           value: environmentName,
         },
-        {
-          namespace: "aws:autoscaling:asg",
-          optionName: "MinSize",
-          value: minimumInstanceCount.toString(),
-        },
-        {
-          namespace: "aws:autoscaling:asg",
-          optionName: "MaxSize",
-          value: maximumInstanceCount.toString(),
-        },
+        ...(environmentVariables
+          ? Object.entries(environmentVariables).map(([key, value]) => ({
+              namespace: "aws:elasticbeanstalk:application:environment",
+              optionName: key,
+              value,
+            }))
+          : []),
+        ...(staticFilesPath
+          ? [
+              {
+                namespace: "aws:elasticbeanstalk:environment:proxy:staticfiles",
+                optionName: "/static",
+                value: staticFilesPath,
+              },
+            ]
+          : []),
         ...(domainName && domainCertificateArn ? optionSettingsForHttps : []),
         ...(logging.enableWebServerLogStreaming
           ? optionSettingsForWebServerLogStreaming
@@ -386,15 +409,23 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
         ...(logging.enableHealthReporting
           ? optionSettingsForHealthReporting
           : []),
+        ...(optionSettings ?? []),
+        ...(looseHealthCheck ? optionSettingsForHealthMatcher : []),
       ],
-      // Let the EB environment consume the latest version of the Django application
-      versionLabel: applicationVersion.ref,
+      // Let the EB environment consume the latest version of the application
+      versionLabel: this.applicationVersion.ref,
     });
 
     // Set up dependencies to ensure proper deployment order
     // The application must exist before the environment and version can be created
-    djangoEnvironment.addDependency(djangoAppplication);
-    applicationVersion.addDependency(djangoAppplication);
+    this.cfnEnvironment.addDependency(this.application);
+    this.applicationVersion.addDependency(this.application);
+
+    new CfnOutput(this, "EnvironmentURL", {
+      value: `http://${this.cfnEnvironment.attrEndpointUrl}`,
+      description:
+        "URL of the load balancer of the Elastic Beanstalk environment",
+    });
 
     // If a custom domain is provided, set up DNS routing
     if (domainName && domainCertificateArn) {
@@ -410,13 +441,19 @@ export class DjangoElasticBeanstalkBackendStack extends Stack {
         // Due to tech limitations, we can only auto direct traffic to the load balancer of the EB instance
         target: RecordTarget.fromAlias({
           bind: (): AliasRecordTargetConfig => ({
-            dnsName: djangoEnvironment.attrEndpointUrl,
+            dnsName: this.cfnEnvironment.attrEndpointUrl,
             // AWS official hosted zone id for classic load balancers in region us-east-1
             // Reference: https://docs.aws.amazon.com/general/latest/gr/rande.html#elasticbeanstalk_region
             hostedZoneId: "Z35SXDOTRQ7X7K",
           }),
         }),
         zone: hostedZone,
+      });
+
+      new CfnOutput(this, "DomainName", {
+        value: `https://${domainName}`,
+        description:
+          "URL of the custom domain of the Elastic Beanstalk environment",
       });
     }
   }

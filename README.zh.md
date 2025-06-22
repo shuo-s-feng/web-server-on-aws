@@ -2,12 +2,12 @@
 
 [English](README.md) | [中文](README.zh.md)
 
-这是一个基于 TypeScript 的 AWS CDK 项目，用于将 Web 应用程序（Node.js 和 Django）部署到 AWS Elastic Beanstalk。该项目提供了强大且可扩展的解决方案，用于使用 AWS 服务托管 Web 应用程序。
+这是一个基于 TypeScript 的 AWS CDK 项目，用于将 Web 应用程序（Node.js、Django 和 Docker）部署到 AWS Elastic Beanstalk。该项目提供了强大且可扩展的解决方案，用于使用 AWS 服务托管 Web 应用程序。
 
 ## 功能特点
 
 - 使用 AWS CDK 自动创建和持续部署基础设施
-- 支持 Node.js 和 Django 后端部署
+- 支持多种后端类型：Node.js、Django 和 Docker
 - 基于环境的部署（测试环境和生产环境）
 - 可选的自定义域名配置和 SSL 证书
 - 全面的日志记录和监控设置
@@ -46,124 +46,180 @@ yarn install
 ```
 .
 ├── bin/                    # CDK 应用入口点
-│   ├── deploy-nodejs-backend.ts    # Node.js 后端部署
-│   └── deploy-django-backend.ts    # Django 后端部署
-├── src/                    # 源代码
-│   ├── stacks/            # CDK 堆栈
-│   └── utils/             # 工具函数
-├── examples/              # 示例 Web 应用源代码
-└── cdk.out/              # CDK 合成输出
+│   └── deploy-elastic-beanstalk.ts    # Elastic Beanstalk 部署
+├── lib/                    # CDK 构造
+│   └── elastic-beanstalk/  # Elastic Beanstalk 构造
+├── configs/                # 环境配置文件
+│   ├── .env.staging.django # Django 测试环境配置
+│   ├── .env.staging.nodejs # Node.js 测试环境配置
+│   ├── .env.staging.docker # Docker 测试环境配置
+│   ├── .env.prod.django    # Django 生产环境配置
+│   ├── .env.prod.nodejs    # Node.js 生产环境配置
+│   └── .env.prod.docker    # Docker 生产环境配置
+└── examples/               # 示例 Web 应用源代码
+    ├── django-backend-dist/    # Django 示例应用程序
+    ├── nodejs-backend-dist/    # Node.js 示例应用程序
+    └── docker-backend-dist/    # Docker 示例应用程序
 ```
 
 ## 环境配置
 
-项目使用特定于环境的配置文件来管理不同的部署环境。在根目录更新以下文件：
+项目使用特定于环境和后端类型的配置文件来管理不同的部署环境。每种后端类型都有自己的配置文件，以便更好地组织和清晰管理。
 
-### `.env.staging`
+### 配置文件结构
 
-```bash
-# AWS 配置
-AWS_ACCOUNT='<AWS 账户ID，例如：123456789012>'
-AWS_REGION='<AWS 区域，例如：us-east-1>'
+- **Django 后端**: `configs/.env.{environment}.django`
+- **Node.js 后端**: `configs/.env.{environment}.nodejs`
+- **Docker 后端**: `configs/.env.{environment}.docker`
 
-# Node.js 后端配置
-NODEJS_BACKEND_APP_NAME='<应用名称，例如：NodeJSBackend>'
-# NODEJS_BACKEND_DOMAIN_NAME='<域名，例如：api.example.com>'
-# NODEJS_BACKEND_DOMAIN_CERT_ARN='<SSL证书ARN，例如：arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-NODEJS_BACKEND_SOURCE_PATH='<源代码路径，例如：./examples/nodejs-backend-dist>'
-# NODEJS_BACKEND_EC2_INSTANCE_TYPE='<实例类型，例如：t3.small>'
-# NODEJS_BACKEND_MIN_INSTANCES='<最小实例数，例如：1>'
-# NODEJS_BACKEND_MAX_INSTANCES='<最大实例数，例如：2>'
-# NODEJS_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
+其中 `{environment}` 可以是 `staging` 或 `prod`。
 
-# Django 后端配置
-DJANGO_BACKEND_APP_NAME='<应用名称，例如：DjangoBackend>'
-# DJANGO_BACKEND_DOMAIN_NAME='<域名，例如：api.example.com>'
-# DJANGO_BACKEND_DOMAIN_CERT_ARN='<SSL证书ARN，例如：arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-DJANGO_BACKEND_SOURCE_PATH='<源代码路径，例如：./examples/django-backend-dist>'
-DJANGO_BACKEND_WSGI_PATH='<WSGI路径，例如：hello_world.wsgi:application>'
-# DJANGO_BACKEND_EC2_INSTANCE_TYPE='<实例类型，例如：t3.small>'
-# DJANGO_BACKEND_MIN_INSTANCES='<最小实例数，例如：1>'
-# DJANGO_BACKEND_MAX_INSTANCES='<最大实例数，例如：2>'
-# DJANGO_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
-```
+### 配置示例
 
-### `.env.prod`
+#### Django 后端核心配置 (`.env.staging.django`)
 
 ```bash
 # AWS 配置
-AWS_ACCOUNT='<AWS 账户ID，例如：123456789012>'
-AWS_REGION='<AWS 区域，例如：us-east-1>'
+AWS_ACCOUNT='<AWS_ACCOUNT, e.g. 123456789012>'
+AWS_REGION='<AWS_REGION, e.g. us-east-1>'
 
-# Node.js 后端配置
-NODEJS_BACKEND_APP_NAME='<应用名称，例如：NodeJSBackend>'
-# NODEJS_BACKEND_DOMAIN_NAME='<域名，例如：api.example.com>'
-# NODEJS_BACKEND_DOMAIN_CERT_ARN='<SSL证书ARN，例如：arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-NODEJS_BACKEND_SOURCE_PATH='<源代码路径，例如：./examples/nodejs-backend-dist>'
-# NODEJS_BACKEND_EC2_INSTANCE_TYPE='<实例类型，例如：t3.small>'
-# NODEJS_BACKEND_MIN_INSTANCES='<最小实例数，例如：1>'
-# NODEJS_BACKEND_MAX_INSTANCES='<最大实例数，例如：2>'
-# NODEJS_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# NODEJS_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
+# Elastic Beanstalk 应用程序名称
+BACKEND_APP_NAME='DjangoBackend'
 
-# Django 后端配置
-DJANGO_BACKEND_APP_NAME='<应用名称，例如：DjangoBackend>'
-# DJANGO_BACKEND_DOMAIN_NAME='<域名，例如：api.example.com>'
-# DJANGO_BACKEND_DOMAIN_CERT_ARN='<SSL证书ARN，例如：arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx>'
-DJANGO_BACKEND_SOURCE_PATH='<源代码路径，例如：./examples/django-backend-dist>'
-DJANGO_BACKEND_WSGI_PATH='<WSGI路径，例如：hello_world.wsgi:application>'
-# DJANGO_BACKEND_EC2_INSTANCE_TYPE='<实例类型，例如：t3.small>'
-# DJANGO_BACKEND_MIN_INSTANCES='<最小实例数，例如：1>'
-# DJANGO_BACKEND_MAX_INSTANCES='<最大实例数，例如：2>'
-# DJANGO_BACKEND_ENABLE_WEB_SERVER_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_EVENT_LOGS='<true/false>'
-# DJANGO_BACKEND_ENABLE_HEALTH_REPORTING='<true/false>'
+# Elastic Beanstalk 环境的解决方案堆栈名称
+# 参考: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.python
+# 部署前请检查最新的解决方案堆栈名称，因为它可能经常更改，旧的可能会部署失败
+BACKEND_SOLUTION_STACK_NAME='64bit Amazon Linux 2023 v4.5.2 running Python 3.12'
+
+# (可选) 应用程序的自定义域名
+# BACKEND_DOMAIN_NAME='example.com'
+
+# (可选) 用于 HTTPS 支持的 ACM SSL 证书 ARN
+# BACKEND_DOMAIN_CERT_ARN='arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx'
+
+# 应用程序源代码的本地路径
+BACKEND_SOURCE_PATH='./examples/django-backend-dist'
+
+# Django 应用程序的 WSGI 路径
+DJANGO_BACKEND_WSGI_PATH='hello_world.wsgi:application'
+
+# Django 应用程序的静态文件路径
+BACKEND_STATIC_FILES_PATH='/staticfiles'
 ```
 
-请将占位符值替换为您的实际配置。注释行是可选的，如果您想使用带有 SSL 证书的自定义域名，可以取消注释。
+#### Node.js 后端核心配置 (`.env.staging.nodejs`)
+
+```bash
+# AWS 配置
+AWS_ACCOUNT='<AWS_ACCOUNT, e.g. 123456789012>'
+AWS_REGION='<AWS_REGION, e.g. us-east-1>'
+
+# Elastic Beanstalk 应用程序名称
+BACKEND_APP_NAME='NodeJsBackend'
+
+# Elastic Beanstalk 环境的解决方案堆栈名称
+# 参考: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.nodejs
+# 部署前请检查最新的解决方案堆栈名称，因为它可能经常更改，旧的可能会部署失败
+BACKEND_SOLUTION_STACK_NAME='64bit Amazon Linux 2023 v6.5.2 running Node.js 22'
+
+# (可选) 应用程序的自定义域名
+# BACKEND_DOMAIN_NAME='example.com'
+
+# (可选) 用于 HTTPS 支持的 ACM SSL 证书 ARN
+# BACKEND_DOMAIN_CERT_ARN='arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx'
+
+# 应用程序源代码的本地路径
+BACKEND_SOURCE_PATH='./examples/nodejs-backend-dist'
+```
+
+#### Docker 后端核心配置 (`.env.staging.docker`)
+
+```bash
+# AWS 配置
+AWS_ACCOUNT='<AWS_ACCOUNT, e.g. 123456789012>'
+AWS_REGION='<AWS_REGION, e.g. us-east-1>'
+
+# Elastic Beanstalk 应用程序名称
+BACKEND_APP_NAME='DockerBackend'
+
+# Elastic Beanstalk 环境的解决方案堆栈名称
+# 参考: https://docs.aws.amazon.com/elasticbeanstalk/latest/platforms/platforms-supported.html#platforms-supported.docker
+# 部署前请检查最新的解决方案堆栈名称，因为它可能经常更改，旧的可能会部署失败
+BACKEND_SOLUTION_STACK_NAME='64bit Amazon Linux 2023 v4.5.2 running Docker'
+
+# (可选) 应用程序的自定义域名
+# BACKEND_DOMAIN_NAME='example.com'
+
+# (可选) 用于 HTTPS 支持的 ACM SSL 证书 ARN
+# BACKEND_DOMAIN_CERT_ARN='arn:aws:acm:region:account:certificate/xxxx-xxxx-xxxx-xxxx'
+
+# 应用程序源代码的本地路径
+BACKEND_SOURCE_PATH='./examples/docker-backend-dist'
+
+# Docker 应用程序的容器端口
+DOCKER_BACKEND_CONTAINER_PORT='3000'
+```
+
+### 配置设置
+
+1. 根据您的后端类型和环境选择适当的配置文件
+2. 使用您的实际 AWS 账户和应用程序设置更新配置值
+3. 用您的特定配置替换占位符值
+4. 对于自定义域名支持，取消注释并配置域名相关变量
 
 ## 部署
 
 ### 环境设置
 
-1. 按照上述说明更新环境配置文件
-2. 填写适合您 AWS 账户和应用程序配置的值
+1. 按照上述说明更新适当的环境配置文件
+2. 填写适合您 AWS 账户和应用程序配置的正确值
 3. 如果使用自定义域名，请取消注释并配置域名相关变量
 
-### Node.js 后端部署
+### 部署命令
 
-#### 测试环境
+#### Django 后端部署
 
-```bash
-yarn deploy-nodejs-backend:staging
-```
-
-#### 生产环境
-
-```bash
-yarn deploy-nodejs-backend:prod
-```
-
-### Django 后端部署
-
-#### 测试环境
+**测试环境:**
 
 ```bash
 yarn deploy-django-backend:staging
 ```
 
-#### 生产环境
+**生产环境:**
 
 ```bash
 yarn deploy-django-backend:prod
 ```
 
-注意：在部署之前，请确保您的 AWS 凭证已正确配置。部署过程将使用相应 `.env.*` 文件中的环境特定配置。
+#### Node.js 后端部署
+
+**测试环境:**
+
+```bash
+yarn deploy-nodejs-backend:staging
+```
+
+**生产环境:**
+
+```bash
+yarn deploy-nodejs-backend:prod
+```
+
+#### Docker 后端部署
+
+**测试环境:**
+
+```bash
+yarn deploy-docker-backend:staging
+```
+
+**生产环境:**
+
+```bash
+yarn deploy-docker-backend:prod
+```
+
+**注意:** 部署前请确保您的 AWS 凭证已正确配置。部署过程将使用相应 `.env.*.*` 文件中的环境特定配置。
 
 ## 创建的 AWS 资源
 
