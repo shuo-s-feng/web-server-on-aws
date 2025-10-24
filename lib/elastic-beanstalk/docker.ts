@@ -25,6 +25,11 @@ export class DockerElasticBeanstalkStack extends BaseElasticBeanstalkStack {
           optionName: "PORT",
           value: props.containerPort.toString(),
         },
+        {
+          namespace: "aws:elasticbeanstalk:environment:process:default",
+          optionName: "Port",
+          value: props.containerPort.toString(),
+        }
       ],
     });
 
